@@ -11,6 +11,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import type { GameRunnerAPI, GameRunnerState } from '../engine/GameRunner';
 import type { GameConfig } from '../core/types';
 
@@ -44,7 +45,8 @@ export function GameScreen({ gameRunner, state, config }: GameScreenProps) {
   const pan = Gesture.Pan()
     .minDistance(15)
     .onEnd((e) => {
-      handleSwipe(e.translationX, e.translationY);
+      'worklet';
+      runOnJS(handleSwipe)(e.translationX, e.translationY);
     });
 
   const gw = config.width || SCREEN_WIDTH;
