@@ -32,14 +32,20 @@ export default function Home() {
 
   const [state, setState] = useState<GameRunnerState>({
     status: 'idle',
-    player: null,
-    threats: [],
+    fleet: [],
+    projectiles: [],
+    destructibles: [],
+    powerups: [],
+    coins: [],
     score: 0,
     coinsThisRun: 0,
     deathReason: null,
-    slowMoUntil: 0,
-    playerJumpUntil: 0,
-    playerDashUntil: 0,
+    targetX: 0,
+    targetY: 0,
+    weaponPattern: 'single',
+    magnetMult: 1,
+    hitStopUntil: 0,
+    floatTexts: [],
   });
   const [coins, setCoins] = useState(economy.getCoins());
 
@@ -95,7 +101,7 @@ export default function Home() {
           ads.showInterstitial().catch(() => {});
         }
       }
-      if (s.status === 'playing' && s.player) {
+      if (s.status === 'playing' && s.fleet?.length) {
         logEvent('run_start');
       }
     },

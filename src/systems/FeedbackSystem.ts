@@ -10,7 +10,14 @@ export type FeedbackEvent =
   | 'death'
   | 'revive'
   | 'score_tick'
-  | 'retry';
+  | 'retry'
+  | 'shoot'
+  | 'hit'
+  | 'destroy'
+  | 'coin'
+  | 'powerup'
+  | 'shield_break'
+  | 'ship_lost';
 
 export interface FeedbackSystemAPI {
   trigger: (event: FeedbackEvent) => void;
@@ -63,6 +70,29 @@ export function createFeedbackSystem(): FeedbackSystemAPI {
             case 'revive':
             case 'retry':
               haptics?.impactAsync?.('medium')?.catch(() => {});
+              break;
+            case 'shoot':
+              haptics?.impactAsync?.('light')?.catch(() => {});
+              getSound()?.playShoot?.();
+              break;
+            case 'hit':
+              getSound()?.playHit?.();
+              break;
+            case 'destroy':
+              haptics?.impactAsync?.('medium')?.catch(() => {});
+              getSound()?.playDestroy?.();
+              break;
+            case 'coin':
+              getSound()?.playCoin?.();
+              break;
+            case 'powerup':
+              getSound()?.playPowerup?.();
+              break;
+            case 'shield_break':
+              getSound()?.playShieldBreak?.();
+              break;
+            case 'ship_lost':
+              haptics?.impactAsync?.('heavy')?.catch(() => {});
               break;
             default:
               break;

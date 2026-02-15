@@ -39,7 +39,7 @@ export function createRemoteConfig(backend?: BackendAdapter | null): RemoteConfi
           if (typeof value === 'boolean') flags[key] = value;
           else if (typeof value === 'number') numbers[key] = value;
         }
-        const cfg = config as Record<string, number>;
+        const cfg = config as unknown as Record<string, number>;
         for (const k of CONFIG_KEYS) {
           const v = remote[k as string];
           if (typeof v === 'number' && Number.isFinite(v)) cfg[k] = v;

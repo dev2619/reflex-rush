@@ -11,6 +11,7 @@ import Animated, {
   withSequence,
   runOnJS,
 } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import type { LayoutRectangle } from 'react-native';
 
 const COUNT = 12;
@@ -74,8 +75,8 @@ function ParticleDot({
   x: number;
   y: number;
   color: string;
-  opacity: Animated.SharedValue<number>;
-  scale: Animated.SharedValue<number>;
+  opacity: SharedValue<number>;
+  scale: SharedValue<number>;
 }) {
   const style = useAnimatedStyle(() => ({
     position: 'absolute' as const,

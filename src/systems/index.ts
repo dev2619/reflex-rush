@@ -2,3 +2,8 @@ export * from './InputSystem';
 export * from './SpawnManager';
 export * from './ScoreSystem';
 export * from './FeedbackSystem';
+export * from './WeaponSystem';
+export * from './FleetSystem';
+export * from './DamageSystem';
+export * from './DropSystem';
+export * from './SpaceSpawnManager';

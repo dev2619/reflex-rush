@@ -19,7 +19,7 @@ export interface ConsentServiceAPI {
 
 export async function getConsentService(): Promise<ConsentServiceAPI> {
   const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-  return {
+  const api: ConsentServiceAPI = {
     async getConsent() {
       try {
         const raw = await AsyncStorage.getItem(KEY);
@@ -30,7 +30,7 @@ export async function getConsentService(): Promise<ConsentServiceAPI> {
       }
     },
     async setConsent(partial: Partial<ConsentState>) {
-      const current = await this.getConsent();
+      const current = await api.getConsent();
       const next: ConsentState = {
         analytics: partial.analytics ?? current?.analytics ?? false,
         ads: partial.ads ?? current?.ads ?? false,
@@ -40,8 +40,9 @@ export async function getConsentService(): Promise<ConsentServiceAPI> {
       await AsyncStorage.setItem(KEY, JSON.stringify(next));
     },
     async hasDecided() {
-      const c = await this.getConsent();
+      const c = await api.getConsent();
       return c != null && (c.timestamp ?? 0) > 0;
     },
   };
+  return api;
 }

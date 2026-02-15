@@ -1,5 +1,6 @@
 /**
  * Global game constants. Overridable by Remote Config.
+ * Space Swipe Shooter defaults.
  */
 
 import type { GameConfig } from './types';
@@ -13,6 +14,12 @@ export const DEFAULT_CONFIG: GameConfig = {
   speedIncrementPerSecond: 15,
   nearMissThresholdPx: 40,
   nearMissSlowMoScale: 0.4,
+  playerMoveSpeedPxPerSec: 520,
+  playerLerpFactor: 12,
+  fireRateMs: 180,
+  projectileSpeedPxPerSec: 900,
+  coinMagnetRadiusPx: 120,
+  maxParticles: 80,
 };
 
 export const SWIPE_THRESHOLD_PX = 50;
@@ -22,3 +29,19 @@ export const LANE_WIDTH_RATIO = 1 / PLAYER_LANE_COUNT;
 export const COINS_PER_SECOND = 1;
 export const COINS_PER_NEAR_MISS = 2;
 export const REVIVE_COST_COINS = 50;
+
+/** Space shooter */
+export const SHIP_WIDTH_RATIO = 0.08;
+export const SHIP_HEIGHT_RATIO = 0.06;
+export const PROJECTILE_WIDTH_RATIO = 0.015;
+export const PROJECTILE_HEIGHT_RATIO = 0.04;
+export const FLEET_FORMATION_OFFSET_Y = 0.04;
+export const FLEET_FORMATION_SPACING_X = 0.06;
+export const HIT_STOP_MS = 28;
+export const SCREEN_SHAKE_AMOUNT = 4;
+export const COINS_PER_METEOR = 1;
+export const COINS_PER_BLOCK = 2;
+export const COINS_PER_ENEMY = 5;
+export const POWERUP_DROP_CHANCE = 0.12;
+export const SHIELD_DURATION_MS = 0;
+export const MAGNET_UPGRADE_MULT = 1.8;
