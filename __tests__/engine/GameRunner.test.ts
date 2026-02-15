@@ -77,6 +77,20 @@ describe('GameRunner', () => {
     expect(state.status).toBe('playing');
   });
 
+  it('goToMenu from gameover sets status to idle', () => {
+    const onStateChange = jest.fn();
+    const api = createGameRunner(config, { onStateChange });
+    api.startRun();
+    const statePlaying = api.getState();
+    expect(statePlaying.status).toBe('playing');
+    api.goToMenu();
+    const stateIdle = api.getState();
+    expect(stateIdle.status).toBe('idle');
+    expect(stateIdle.player).toBeNull();
+    expect(stateIdle.threats).toEqual([]);
+    api.destroy();
+  });
+
   it('onSwipe when idle does nothing (no crash)', () => {
     const api = createGameRunner(config, { onStateChange: () => {} });
     expect(api.getState().status).toBe('idle');

@@ -34,12 +34,13 @@ describe('SpawnManager', () => {
     expect(entities[0].lane).toBeLessThan(3);
   });
 
-  it('reset clears internal state', () => {
+  it('reset clears internal state and first tick after reset spawns one', () => {
     const spawn = createSpawnManager(config);
     spawn.tick(600, 0, config.width, config.height);
     spawn.reset();
     const after = spawn.tick(100, 0, config.width, config.height);
-    expect(after).toHaveLength(0);
+    expect(after.length).toBeGreaterThanOrEqual(1);
+    expect(after[0].kind).toBe('threat');
   });
 
   it('does not hang when spawnIntervalMs is 0 (guarded to min 1)', () => {

@@ -201,6 +201,12 @@ export function GameScreen({
               >
                 <Text style={styles.retryText}>RETRY</Text>
               </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.menuBtn, pressed && styles.retryPressed]}
+                onPress={() => gameRunner.goToMenu()}
+              >
+                <Text style={styles.menuBtnText}>Menú principal</Text>
+              </Pressable>
             </View>
           </View>
         )}
@@ -328,11 +334,25 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#00ff88',
     borderRadius: 12,
+    marginBottom: 10,
   },
   retryPressed: { opacity: 0.8 },
   retryText: {
     fontSize: 18,
     fontWeight: '700',
     color: '#0a0a0f',
+  },
+  menuBtn: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+  menuBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#aaa',
   },
 });

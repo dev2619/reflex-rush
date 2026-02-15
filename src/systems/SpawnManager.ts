@@ -38,7 +38,8 @@ export function createSpawnManager(config: GameConfig): SpawnManagerAPI {
   }
 
   function reset() {
-    nextSpawnAt = 0;
+    // Primer obstáculo en el primer tick; luego cada spawnIntervalMs
+    nextSpawnAt = Math.max(1, config.spawnIntervalMs);
   }
 
   return { tick, reset };

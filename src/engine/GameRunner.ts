@@ -38,6 +38,7 @@ export interface GameRunnerAPI {
   getState: () => GameRunnerState;
   startRun: () => void;
   retry: () => void;
+  goToMenu: () => void;
   onSwipe: (direction: SwipeDirection) => void;
   destroy: () => void;
 }
@@ -153,6 +154,22 @@ export function createGameRunner(
     notify();
   });
 
+  function goToMenu() {
+    loop.stop();
+    state = {
+      status: 'idle',
+      player: null,
+      threats: [],
+      score: 0,
+      coinsThisRun: 0,
+      deathReason: null,
+      slowMoUntil: 0,
+      playerJumpUntil: 0,
+      playerDashUntil: 0,
+    };
+    notify();
+  }
+
   return {
     getState: () => ({ ...state }),
     startRun,
@@ -161,6 +178,7 @@ export function createGameRunner(
       feedback.trigger('retry');
       startRun();
     },
+    goToMenu,
     onSwipe(direction: SwipeDirection) {
       if (state.status !== 'playing' || !state.player) return;
       feedback.trigger('swipe');
