@@ -2,12 +2,15 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
+import { GameProvider } from '../src/context/GameContext';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <GameProvider>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }} />
+      </GameProvider>
     </GestureHandlerRootView>
   );
 }

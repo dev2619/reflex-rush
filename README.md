@@ -38,6 +38,13 @@ npx expo start
 - **a** → Android emulator  
 - Escanear QR con Expo Go en dispositivo físico
 
+### Si no ves los últimos cambios (Tienda, Misiones, Ranking, Revive)
+
+1. **Cierra la app por completo** (quit Expo Go o el simulador).
+2. Arranca con caché limpia: `npx expo start -c`.
+3. Vuelve a abrir la app (escanear QR o **i**/**a**).
+4. En la **pantalla inicial** (antes de tocar PLAY) deberías ver los botones **🛒 Tienda**, **📋 Misiones**, **🏆 Ranking**. Tras un **Game Over** verás **Revivir (50 🪙)** y **Ver anuncio para revivir** si tienes monedas o ads disponibles.
+
 ## Tests (TDD)
 
 Regla: **nueva lógica en core/engine/systems debe tener tests**.
