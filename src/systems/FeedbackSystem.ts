@@ -1,6 +1,8 @@
 /**
- * Feedback system — haptics and visual/audio triggers (hooks for particles/sound).
+ * Feedback system — haptics, sound, visual triggers.
  */
+
+import type { SoundServiceAPI } from '../services/SoundService';
 
 export type FeedbackEvent =
   | 'swipe'
@@ -16,6 +18,7 @@ export interface FeedbackSystemAPI {
 
 type HapticsLike = { impactAsync?: (style?: string) => Promise<void> } | null;
 let haptics: HapticsLike = null;
+let soundService: SoundServiceAPI | null = null;
 
 async function loadHaptics() {
   if (haptics) return;
@@ -27,6 +30,18 @@ async function loadHaptics() {
   }
 }
 
+function getSound(): SoundServiceAPI | null {
+  if (!soundService) {
+    try {
+      const { createSoundService } = require('../services/SoundService');
+      soundService = createSoundService();
+    } catch {
+      soundService = null;
+    }
+  }
+  return soundService;
+}
+
 export function createFeedbackSystem(): FeedbackSystemAPI {
   return {
     trigger(event: FeedbackEvent) {
@@ -35,12 +50,15 @@ export function createFeedbackSystem(): FeedbackSystemAPI {
           switch (event) {
             case 'swipe':
               haptics?.impactAsync?.('light')?.catch(() => {});
+              getSound()?.playSwipe();
               break;
             case 'near_miss':
               haptics?.impactAsync?.('medium')?.catch(() => {});
+              getSound()?.playNearMiss();
               break;
             case 'death':
               haptics?.impactAsync?.('heavy')?.catch(() => {});
+              getSound()?.playDeath();
               break;
             case 'revive':
             case 'retry':

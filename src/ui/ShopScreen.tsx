@@ -7,28 +7,43 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGame } from '../context/GameContext';
 import { SHOP_CATALOG } from '../config/ShopCatalog';
+import { logEvent } from '../analytics/AnalyticsLayer';
+import type { GameEvent } from '../services/EventService';
 
 export function ShopScreen() {
   const router = useRouter();
-  const { economy, meta } = useGame();
+  const { economy, meta, lootbox, iap, events } = useGame();
   const [coins, setCoins] = useState(economy.getCoins());
   const [refreshed, setRefreshed] = useState(0);
+  const [lootboxMessage, setLootboxMessage] = useState<string | null>(null);
+  const [activeEvent, setActiveEvent] = useState<GameEvent | null>(null);
 
   useEffect(() => {
     setCoins(economy.getCoins());
   }, [economy, refreshed]);
 
-  const skins = SHOP_CATALOG.filter((i) => i.type === 'skin');
-  const trails = SHOP_CATALOG.filter((i) => i.type === 'trail');
+  useEffect(() => {
+    events.getActiveEvent().then(setActiveEvent).catch(() => setActiveEvent(null));
+  }, [events, refreshed]);
+
+  const coinMultiplier = activeEvent?.coinMultiplier ?? 1;
+  const limitedIds = activeEvent?.limitedSkinIds ?? [];
+  const skinsCatalog = SHOP_CATALOG.filter((i) => i.type === 'skin');
+  const trailsCatalog = SHOP_CATALOG.filter((i) => i.type === 'trail');
+  const skins = limitedIds.length > 0
+    ? skinsCatalog.filter((s) => limitedIds.includes(s.id)).concat(skinsCatalog.filter((s) => !limitedIds.includes(s.id)))
+    : skinsCatalog;
+  const trails = trailsCatalog;
 
   function handleBuy(item: typeof SHOP_CATALOG[0]) {
-    if (item.price > coins) return;
+    const price = item.price;
+    if (price > coins) return;
     if (item.type === 'skin') {
-      if (!economy.spendCoins(item.price)) return;
+      if (!economy.spendCoins(price)) return;
       meta.unlockSkin(item.id);
       meta.setEquippedSkin(item.id);
     } else {
-      if (!economy.spendCoins(item.price)) return;
+      if (!economy.spendCoins(price)) return;
       meta.unlockTrail(item.id);
       meta.setEquippedTrail(item.id);
     }
@@ -51,10 +66,47 @@ export function ShopScreen() {
       : meta.getUnlockedTrails().includes(item.id);
   }
 
+  function isEventLimited(item: { id: string }) {
+    return limitedIds.length > 0 && limitedIds.includes(item.id);
+  }
+
   function isEquipped(item: typeof SHOP_CATALOG[0]) {
     return item.type === 'skin'
       ? meta.getEquippedSkin() === item.id
       : meta.getEquippedTrail() === item.id;
+  }
+
+  async function handleRemoveAds() {
+    const ok = await iap.purchase('remove_ads');
+    if (ok) {
+      logEvent('purchase', { productId: 'remove_ads' });
+      setRefreshed((r) => r + 1);
+    }
+  }
+
+  function handleLootbox() {
+    const result = lootbox.open(coins, SHOP_CATALOG);
+    if (!result.success || !result.reward) {
+      setLootboxMessage(`Necesitas ${result.cost} 🪙`);
+      return;
+    }
+    if (!economy.spendCoins(result.cost)) return;
+    const item = SHOP_CATALOG.find((i) => i.id === result.reward);
+    if (item) {
+      if (item.type === 'skin') {
+        meta.unlockSkin(item.id);
+        meta.setEquippedSkin(item.id);
+      } else {
+        meta.unlockTrail(item.id);
+        meta.setEquippedTrail(item.id);
+      }
+      meta.save();
+    }
+    economy.save();
+    setCoins(economy.getCoins());
+    setRefreshed((r) => r + 1);
+    setLootboxMessage(`¡Has obtenido: ${item?.name ?? result.reward}!`);
+    setTimeout(() => setLootboxMessage(null), 2500);
   }
 
   return (
@@ -66,13 +118,47 @@ export function ShopScreen() {
         <Text style={styles.coins}>🪙 {coins}</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {coinMultiplier > 1 && activeEvent && (
+          <View style={styles.eventBanner}>
+            <Text style={styles.eventBannerText}>Evento: {activeEvent.name} — x{coinMultiplier} monedas en partidas</Text>
+          </View>
+        )}
+        {!iap.hasPurchased('remove_ads') && (
+          <>
+            <Text style={styles.sectionTitle}>Compras</Text>
+            <View style={styles.row}>
+              <Text style={styles.itemName}>Quitar anuncios</Text>
+              <Pressable style={styles.btn} onPress={handleRemoveAds}>
+                <Text style={styles.btnText}>Comprar</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+        {iap.hasPurchased('remove_ads') && (
+          <Text style={styles.eventBannerText}>Anuncios desactivados</Text>
+        )}
+        <Text style={styles.sectionTitle}>Lootbox</Text>
+        <View style={styles.row}>
+          <Text style={styles.itemName}>Caja sorpresa (skin o estela)</Text>
+          <View style={styles.rowRight}>
+            <Pressable
+              style={[styles.btn, coins < lootbox.openCost() && styles.btnDisabled]}
+              onPress={handleLootbox}
+              disabled={coins < lootbox.openCost()}
+            >
+              <Text style={styles.btnText}>{lootbox.openCost()} 🪙</Text>
+            </Pressable>
+          </View>
+        </View>
+        {lootboxMessage != null && <Text style={styles.lootboxMsg}>{lootboxMessage}</Text>}
         <Text style={styles.sectionTitle}>Skins</Text>
         {skins.map((item) => {
           const unlocked = isUnlocked(item);
           const equipped = isEquipped(item);
+          const limited = isEventLimited(item);
           return (
-            <View key={item.id} style={styles.row}>
-              <Text style={styles.itemName}>{item.name}</Text>
+            <View key={item.id} style={[styles.row, limited && styles.rowEvent]}>
+              <Text style={styles.itemName}>{item.name}{limited ? ' (evento)' : ''}</Text>
               <View style={styles.rowRight}>
                 {!unlocked ? (
                   <Pressable
@@ -141,4 +227,8 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   btnText: { color: '#0a0a0f', fontWeight: '600' },
   equipped: { color: '#00ff88', fontSize: 14 },
+  lootboxMsg: { color: '#00ff88', fontSize: 14, marginTop: 8 },
+  eventBanner: { backgroundColor: 'rgba(100,50,255,0.25)', padding: 12, borderRadius: 8, marginBottom: 16 },
+  eventBannerText: { color: '#c8b8ff', fontSize: 14 },
+  rowEvent: { borderLeftWidth: 3, borderLeftColor: '#8b5cf6' },
 });

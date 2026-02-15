@@ -16,6 +16,8 @@ export interface Entity {
   skinId?: string;
   /** Optional: time-to-live for particles */
   ttlMs?: number;
+  /** Threat variant: 0=normal, 1=fast, 2=wide (colores/formas en UI) */
+  threatVariant?: number;
 }
 
 let nextId = 0;
@@ -26,7 +28,7 @@ export function nextEntityId(): string {
 export function createEntity(
   kind: EntityKind,
   bounds: Bounds,
-  opts: Partial<Pick<Entity, 'velocity' | 'lane' | 'skinId' | 'ttlMs'>> = {}
+  opts: Partial<Pick<Entity, 'velocity' | 'lane' | 'skinId' | 'ttlMs' | 'threatVariant'>> = {}
 ): Entity {
   return {
     id: nextEntityId(),

@@ -5,19 +5,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
-import { mockBackendAdapter } from '../services/BackendAdapter';
+import { useGame } from '../context/GameContext';
 
 export function LeaderboardScreen() {
   const router = useRouter();
+  const { backend } = useGame();
   const [entries, setEntries] = useState<{ rank: number; score: number; displayName: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    mockBackendAdapter.getLeaderboard(20).then((list) => {
+    backend.getLeaderboard(20).then((list) => {
       setEntries(list.map((e) => ({ rank: e.rank, score: e.score, displayName: e.displayName })));
       setLoading(false);
     });
-  }, []);
+  }, [backend]);
 
   return (
     <View style={styles.container}>

@@ -1,8 +1,8 @@
 /**
- * Entry — game screen, runner lifecycle, economy, missions, analytics.
+ * Entry — game screen, runner lifecycle, economy, missions, analytics, interstitial, retention, leaderboard.
  */
 
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Dimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GameScreen } from '../src/ui/GameScreen';
@@ -13,6 +13,9 @@ import { setAnalyticsProvider, logEvent, mockProvider } from '../src/analytics/A
 import { createAdsHooks } from '../src/monetization/AdsHooks';
 import type { GameRunnerState } from '../src/engine/GameRunner';
 
+const FIRST_OPEN_KEY = '@reflex_rush/first_open_ts';
+const INTERSTITIAL_EVERY_N_GAMES = 2;
+
 const { width, height } = Dimensions.get('window');
 const config = {
   ...DEFAULT_CONFIG,
@@ -22,8 +25,10 @@ const config = {
 
 export default function Home() {
   const router = useRouter();
-  const { economy, missions } = useGame();
+  const { economy, missions, backend, consent, iap, events } = useGame();
   const ads = useMemo(() => createAdsHooks(), []);
+  const gamesSinceInterstitial = useRef(0);
+  const canShowAds = Boolean(consent?.ads && !iap.hasPurchased('remove_ads'));
 
   const [state, setState] = useState<GameRunnerState>({
     status: 'idle',
@@ -33,6 +38,8 @@ export default function Home() {
     coinsThisRun: 0,
     deathReason: null,
     slowMoUntil: 0,
+    playerJumpUntil: 0,
+    playerDashUntil: 0,
   });
   const [coins, setCoins] = useState(economy.getCoins());
 
@@ -45,25 +52,54 @@ export default function Home() {
   useEffect(() => {
     setAnalyticsProvider(mockProvider);
     logEvent('session_start');
+    (async () => {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      let first = await AsyncStorage.getItem(FIRST_OPEN_KEY);
+      if (!first) {
+        first = String(Date.now());
+        await AsyncStorage.setItem(FIRST_OPEN_KEY, first);
+      }
+      const firstTs = parseInt(first, 10) || Date.now();
+      const day = Math.floor((Date.now() - firstTs) / 86400000);
+      logEvent('retention_day', { day });
+    })();
   }, []);
 
   const onStateChange = useCallback(
     (s: GameRunnerState) => {
       setState(s);
       if (s.status === 'gameover') {
-        if (s.coinsThisRun > 0) economy.addCoins(s.coinsThisRun);
-        economy.save();
-        setCoins(economy.getCoins());
+        if (s.coinsThisRun > 0) {
+          events.getActiveEvent().then((event) => {
+            const mult = event?.coinMultiplier ?? 1;
+            economy.addCoins(Math.round(s.coinsThisRun * mult));
+            economy.save();
+            setCoins(economy.getCoins());
+          }).catch(() => {
+            economy.addCoins(s.coinsThisRun);
+            economy.save();
+            setCoins(economy.getCoins());
+          });
+        } else {
+          economy.save();
+          setCoins(economy.getCoins());
+        }
         missions.recordRun();
         missions.recordScore(s.score);
         missions.save();
         logEvent('run_end', { score: s.score, death_reason: s.deathReason ?? 'unknown' });
+        backend.submitScore(s.score).catch(() => {});
+        gamesSinceInterstitial.current += 1;
+        if (canShowAds && gamesSinceInterstitial.current >= INTERSTITIAL_EVERY_N_GAMES) {
+          gamesSinceInterstitial.current = 0;
+          ads.showInterstitial().catch(() => {});
+        }
       }
       if (s.status === 'playing' && s.player) {
         logEvent('run_start');
       }
     },
-    [economy, missions]
+    [economy, missions, backend, canShowAds, ads, events]
   );
 
   const gameRunner = useMemo(
@@ -86,7 +122,10 @@ export default function Home() {
 
   const onReviveWithAd = useCallback(async () => {
     const ok = await ads.showRewarded();
-    if (ok) gameRunner.startRun();
+    if (ok) {
+      logEvent('ad_watch');
+      gameRunner.startRun();
+    }
     return ok;
   }, [ads, gameRunner]);
 
@@ -100,7 +139,7 @@ export default function Home() {
       onNavigateMissions={() => router.push('/missions')}
       onNavigateLeaderboard={() => router.push('/leaderboard')}
       onReviveWithCoins={onReviveWithCoins}
-      onReviveWithAd={onReviveWithAd}
+      onReviveWithAd={canShowAds ? onReviveWithAd : undefined}
     />
   );
 }

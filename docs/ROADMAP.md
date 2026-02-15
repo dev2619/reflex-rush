@@ -14,10 +14,10 @@
 ## Fase 2 — Game feel
 
 - [x] Partículas en muerte
-- [ ] Sonidos cortos (swipe, near-miss, game over)
-- [ ] Slow-mo visual en near-miss (ya hay lógica; reforzar en UI)
-- [ ] Animaciones de transición de lane (Reanimated)
-- [ ] Más variedad visual en amenazas (formas/colores por tipo)
+- [x] Sonidos cortos (swipe, near-miss, game over)
+- [x] Slow-mo visual en near-miss (vignette)
+- [x] Animaciones de transición de lane (Reanimated)
+- [x] Más variedad visual en amenazas (variantes + colores)
 
 ## Fase 3 — Meta y economía
 
@@ -30,17 +30,17 @@
 ## Fase 4 — Monetización
 
 - [x] Hooks rewarded video (mock; integrar AdMob / Meta)
-- [ ] Interstitial suave (entre runs)
-- [x] Hooks IAP (mock; remove ads, starter pack, coin packs)
-- [ ] A/B tests de colocación de ads
+- [x] Interstitial suave (entre runs, respetando consent + remove_ads)
+- [x] Hooks IAP (mock; remove ads en tienda + logEvent purchase)
+- [ ] A/B tests de colocación de ads (feature flags listos)
 
 ## Fase 5 — Escala y LiveOps
 
-- [ ] Remote config real (Firebase o similar)
+- [x] Remote config (refresh desde BackendAdapter; mock; sustituir por Firebase)
 - [x] Pantalla Leaderboard (UI + adapter mock)
-- [ ] Eventos temporales (doble monedas, skins limitadas)
-- [ ] Analytics en producción y dashboards
-- [ ] Preparar builds para App Store / Play Store
+- [x] Eventos temporales (coinMultiplier en run; tienda: banner + skins evento)
+- [x] Analytics ad_watch y purchase
+- [x] Preparar builds para App Store / Play Store (EAS + README)
 
 ## Extensiones futuras
 

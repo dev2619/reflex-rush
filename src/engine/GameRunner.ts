@@ -22,6 +22,10 @@ export type GameRunnerState = {
   coinsThisRun: number;
   deathReason: string | null;
   slowMoUntil: number;
+  /** Timestamp until which jump Y offset applies (swipe up) */
+  playerJumpUntil: number;
+  /** Timestamp until which player is invulnerable (swipe down = dash) */
+  playerDashUntil: number;
 };
 
 export type GameRunnerCallbacks = {
@@ -55,6 +59,8 @@ export function createGameRunner(
     coinsThisRun: 0,
     deathReason: null,
     slowMoUntil: 0,
+    playerJumpUntil: 0,
+    playerDashUntil: 0,
   };
 
   let runStartTime = 0;
@@ -83,6 +89,8 @@ export function createGameRunner(
       coinsThisRun: 0,
       deathReason: null,
       slowMoUntil: 0,
+      playerJumpUntil: 0,
+      playerDashUntil: 0,
     };
     runStartTime = Date.now();
     loop.start();
@@ -123,7 +131,7 @@ export function createGameRunner(
         continue;
       }
       const dist = distanceBetween(t.bounds, playerBounds);
-      if (intersectAABB(t.bounds, playerBounds)) {
+      if (state.playerDashUntil <= now && intersectAABB(t.bounds, playerBounds)) {
         kill('collision');
         return;
       }
@@ -157,11 +165,16 @@ export function createGameRunner(
       if (state.status !== 'playing' || !state.player) return;
       feedback.trigger('swipe');
       const gameWidth = Math.max(1, config.width);
+      const now = Date.now();
       let lane = state.player.lane ?? 1;
       if (direction === 'left') lane = Math.max(0, lane - 1);
       else if (direction === 'right') lane = Math.min(PLAYER_LANE_COUNT - 1, lane + 1);
-      else if (direction === 'up' || direction === 'down') {
-        lane = direction === 'up' ? Math.max(0, lane - 1) : Math.min(PLAYER_LANE_COUNT - 1, lane + 1);
+      else if (direction === 'up') {
+        state.playerJumpUntil = now + 300;
+        lane = Math.max(0, lane - 1);
+      } else if (direction === 'down') {
+        state.playerDashUntil = now + 400;
+        lane = Math.min(PLAYER_LANE_COUNT - 1, lane + 1);
       }
       state.player.lane = lane;
       state.player.bounds = movePlayerToLane(state.player.bounds, lane, gameWidth);

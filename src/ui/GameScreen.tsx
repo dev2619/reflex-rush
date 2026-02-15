@@ -11,11 +11,14 @@ import {
   Pressable,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import { runOnJS } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withTiming, runOnJS, useSharedValue } from 'react-native-reanimated';
 import type { GameRunnerAPI, GameRunnerState } from '../engine/GameRunner';
 import type { GameConfig } from '../core/types';
 import { DeathParticles } from './DeathParticles';
+
+const THREAT_COLORS = ['#ff3366', '#ffaa00', '#aa66ff'] as const;
+const JUMP_OFFSET_Y = -20;
+const LANE_ANIM_DURATION = 120;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_MIN = 40;
@@ -58,6 +61,18 @@ export function GameScreen({
   const gh = config.height || SCREEN_HEIGHT;
   const scaleX = SCREEN_WIDTH / gw;
   const scaleY = SCREEN_HEIGHT / gh;
+  const now = Date.now();
+  const isSlowMo = state.slowMoUntil > now;
+  const jumpOffsetY = state.playerJumpUntil > now ? JUMP_OFFSET_Y : 0;
+  const isDashing = state.playerDashUntil > now;
+
+  const playerX = useSharedValue(state.player?.bounds?.x ?? 0);
+  useEffect(() => {
+    if (state.player?.bounds != null) playerX.value = state.player.bounds.x;
+  }, [state.player?.bounds?.x, playerX]);
+  const playerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: withTiming(playerX.value, { duration: LANE_ANIM_DURATION }) }],
+  }));
   useEffect(() => {
     if (prevStatus.current === 'playing' && state.status === 'gameover' && state.player?.bounds) {
       const b = state.player.bounds;
@@ -108,11 +123,13 @@ export function GameScreen({
                 style={[
                   styles.player,
                   {
-                    left: state.player.bounds.x,
-                    top: state.player.bounds.y,
+                    left: 0,
+                    top: state.player.bounds.y + jumpOffsetY,
                     width: state.player.bounds.width,
                     height: state.player.bounds.height,
                   },
+                  playerAnimatedStyle,
+                  isDashing && styles.playerDash,
                 ]}
               />
             )}
@@ -127,6 +144,7 @@ export function GameScreen({
                       top: t.bounds.y,
                       width: t.bounds.width,
                       height: t.bounds.height,
+                      backgroundColor: THREAT_COLORS[t.threatVariant ?? 0] ?? THREAT_COLORS[0],
                     },
                   ]}
                 />
@@ -139,6 +157,7 @@ export function GameScreen({
         {state.status === 'playing' && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <Text style={styles.score}>{state.score}</Text>
+            {isSlowMo && <View style={styles.slowMoVignette} />}
           </View>
         )}
 
@@ -240,10 +259,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#00ff88',
     borderRadius: 8,
   },
+  playerDash: {
+    opacity: 0.85,
+    borderWidth: 2,
+    borderColor: '#00ffff',
+  },
   threat: {
     position: 'absolute',
     backgroundColor: '#ff3366',
     borderRadius: 6,
+  },
+  slowMoVignette: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(100,50,255,0.15)',
+    borderRadius: 999,
   },
   score: {
     position: 'absolute',

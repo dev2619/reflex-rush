@@ -103,6 +103,40 @@ docs/
 - **Remote config**: `config/RemoteConfig.ts` listo para variables remotas.
 - **Meta progresión**: skins/trails en `services/MetaProgression.ts`; economía en `EconomyService`.
 
+## Builds (App Store / Play Store)
+
+El proyecto incluye **EAS Build**. Pasos resumidos:
+
+1. **Instalar EAS CLI** (si no lo tienes):
+   ```bash
+   npm i -g eas-cli
+   eas login
+   ```
+
+2. **Configurar el proyecto** en [expo.dev](https://expo.dev): vincula el repo y crea el proyecto si hace falta.
+
+3. **Ajustar `eas.json`** (opcional): en `submit.production` pon tu Apple ID y ASC App ID para iOS; para Android, ruta al `google-service-account.json` si usas submit automático.
+
+4. **Build de preview** (APK/IPA para pruebas):
+   ```bash
+   eas build --profile preview --platform android
+   eas build --profile preview --platform ios
+   ```
+
+5. **Build de producción** (AAB para Play Store, IPA para App Store):
+   ```bash
+   eas build --profile production --platform android
+   eas build --profile production --platform ios
+   ```
+
+6. **Enviar a tiendas** (tras configurar credenciales):
+   ```bash
+   eas submit --platform ios
+   eas submit --platform android
+   ```
+
+Documentación completa: [Expo EAS Build](https://docs.expo.dev/build/introduction/).
+
 ## Roadmap
 
 Véase [docs/ROADMAP.md](docs/ROADMAP.md).

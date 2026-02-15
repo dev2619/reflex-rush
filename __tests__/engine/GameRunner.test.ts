@@ -97,6 +97,8 @@ describe('GameRunner', () => {
     expect(state).toHaveProperty('coinsThisRun');
     expect(state).toHaveProperty('deathReason');
     expect(state).toHaveProperty('slowMoUntil');
+    expect(state).toHaveProperty('playerJumpUntil');
+    expect(state).toHaveProperty('playerDashUntil');
     expect(Array.isArray(state.threats)).toBe(true);
     api.destroy();
   });

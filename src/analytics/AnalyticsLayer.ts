@@ -4,6 +4,7 @@
 
 export type AnalyticsEvent =
   | 'session_start'
+  | 'retention_day'
   | 'run_start'
   | 'run_end'
   | 'death_reason'
