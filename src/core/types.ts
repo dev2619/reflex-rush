@@ -19,6 +19,7 @@ export enum EntityKind {
   Meteor = 'meteor',
   Block = 'block',
   Projectile = 'projectile',
+  EnemyProjectile = 'enemy_projectile',
   Powerup = 'powerup',
   Coin = 'coin',
 }

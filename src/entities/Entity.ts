@@ -44,6 +44,8 @@ export interface Entity {
   hitFlashUntil?: number;
   /** Weapon pattern for player fleet */
   weaponPattern?: WeaponPattern;
+  /** Proyectil enemigo (no usa pool) */
+  fromEnemy?: boolean;
 }
 
 let nextId = 0;
@@ -57,7 +59,7 @@ export function createEntity(
   opts: Partial<Pick<Entity,
     'velocity' | 'lane' | 'skinId' | 'ttlMs' | 'threatVariant' |
     'hp' | 'maxHp' | 'destructibleVariant' | 'shieldActive' | 'powerupType' |
-    'ownerId' | 'damage' | 'coinValue' | 'fleetIndex' | 'nextShotAt' | 'hitFlashUntil' | 'weaponPattern'
+    'ownerId' | 'damage' | 'coinValue' | 'fleetIndex' | 'nextShotAt' | 'hitFlashUntil' | 'weaponPattern' | 'fromEnemy'
   >> = {}
 ): Entity {
   return {

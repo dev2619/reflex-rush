@@ -21,12 +21,16 @@ import { createFeedbackSystem } from '../systems/FeedbackSystem';
 import { intersectAABB } from './CollisionSystem';
 import type { GameConfig } from '../core/types';
 import type { WeaponPattern } from '../core/types';
+import { createEnemyProjectile } from '../entities/EnemyProjectile';
 import {
   HIT_STOP_MS,
   COINS_PER_METEOR,
   COINS_PER_BLOCK,
   COINS_PER_ENEMY,
   MAGNET_UPGRADE_MULT,
+  FIRE_RATE_MULT_UPGRADE,
+  ENEMY_SHOOT_INTERVAL_MIN_MS,
+  ENEMY_SHOOT_INTERVAL_MAX_MS,
 } from '../core/constants';
 
 export type GameRunnerState = {
@@ -46,6 +50,10 @@ export type GameRunnerState = {
   weaponPattern: WeaponPattern;
   /** Magnet radius multiplier (powerup) */
   magnetMult: number;
+  /** Fire rate multiplier (1 = base; >1 = disparo más rápido, powerup) */
+  fireRateMult: number;
+  /** Proyectiles enemigos (disparan hacia abajo) */
+  enemyProjectiles: Entity[];
   /** Hit stop / screen shake until */
   hitStopUntil: number;
   /** Floating +N text to show */
@@ -93,6 +101,8 @@ export function createGameRunner(
     targetY: 0,
     weaponPattern: 'single',
     magnetMult: 1,
+    fireRateMult: 1,
+    enemyProjectiles: [],
     hitStopUntil: 0,
     floatTexts: [],
   };
@@ -132,6 +142,8 @@ export function createGameRunner(
       targetY: leader.bounds.y,
       weaponPattern: 'single',
       magnetMult: 1,
+      fireRateMult: 1,
+      enemyProjectiles: [],
       hitStopUntil: 0,
       floatTexts: [],
     };
@@ -171,10 +183,10 @@ export function createGameRunner(
     const newObstacles = spawn.tick(effectiveDeltaMs, runElapsed, w, h);
     state.destructibles.push(...newObstacles);
 
-    // ——— Auto fire ———
+    // ——— Auto fire (fireRateMult acelera con powerup) ———
     const fleetShips = getFleetShips(state.fleet);
     for (const s of fleetShips) s.weaponPattern = state.weaponPattern;
-    const newProjectiles = weaponSystem.tick(now, state.fleet, projectilePool, config);
+    const newProjectiles = weaponSystem.tick(now, state.fleet, projectilePool, config, state.fireRateMult);
     state.projectiles.push(...newProjectiles);
     if (newProjectiles.length > 0) feedback.trigger('shoot');
 
@@ -221,6 +233,31 @@ export function createGameRunner(
 
     state.destructibles = state.destructibles.filter(
       (d) => !toRemoveDestructible.includes(d.id)
+    );
+
+    // ——— Enemigos disparan al azar (lento) ———
+    for (const d of state.destructibles) {
+      if (d.kind !== EntityKind.EnemyShip) continue;
+      if (d.nextShotAt == null || d.nextShotAt === 0) {
+        d.nextShotAt = now + ENEMY_SHOOT_INTERVAL_MIN_MS * 0.5 + Math.random() * 1000;
+      }
+      if (now >= d.nextShotAt) {
+        const cx = d.bounds.x + d.bounds.width / 2;
+        const cy = d.bounds.y + d.bounds.height;
+        state.enemyProjectiles.push(createEnemyProjectile(w, h, cx, cy));
+        d.nextShotAt = now + ENEMY_SHOOT_INTERVAL_MIN_MS + Math.random() * (ENEMY_SHOOT_INTERVAL_MAX_MS - ENEMY_SHOOT_INTERVAL_MIN_MS);
+      }
+    }
+
+    // ——— Mover proyectiles enemigos ———
+    for (const ep of state.enemyProjectiles) {
+      if (ep.velocity) {
+        ep.bounds.x += ep.velocity.x * deltaSec;
+        ep.bounds.y += ep.velocity.y * deltaSec;
+      }
+    }
+    state.enemyProjectiles = state.enemyProjectiles.filter(
+      (ep) => ep.bounds.y < h + 50 && ep.bounds.y > -20
     );
 
     // ——— Move destructibles, powerups, coins ———
@@ -288,6 +325,7 @@ export function createGameRunner(
               : state.weaponPattern === 'double'
                 ? 'spread'
                 : 'spread';
+          state.fireRateMult = FIRE_RATE_MULT_UPGRADE;
         } else if (pu.powerupType === 'magnet') {
           state.magnetMult = MAGNET_UPGRADE_MULT;
         }
@@ -296,9 +334,10 @@ export function createGameRunner(
     }
     state.powerups = state.powerups.filter((p) => !toRemovePowerup.includes(p.id));
 
-    // ——— Ship vs obstacle: lose ship or shield ———
+    // ——— Ship vs obstacle + proyectiles enemigos → pierde nave o escudo ———
     const obstacles = state.destructibles;
     const toRemoveShip: string[] = [];
+    const toRemoveEnemyProj: string[] = [];
     for (const ship of state.fleet) {
       const coll = findShipCollision(ship, obstacles);
       if (coll) {
@@ -313,6 +352,25 @@ export function createGameRunner(
         }
       }
     }
+    // ——— Proyectil enemigo impacta nave ———
+    for (const ep of state.enemyProjectiles) {
+      for (const ship of state.fleet) {
+        if (intersectAABB(ep.bounds, ship.bounds)) {
+          toRemoveEnemyProj.push(ep.id);
+          if (ship.shieldActive) {
+            ship.shieldActive = false;
+            feedback.trigger('shield_break');
+            state.hitStopUntil = now + HIT_STOP_MS;
+          } else {
+            toRemoveShip.push(ship.id);
+            state.hitStopUntil = now + HIT_STOP_MS;
+            feedback.trigger('ship_lost');
+          }
+          break;
+        }
+      }
+    }
+    state.enemyProjectiles = state.enemyProjectiles.filter((ep) => !toRemoveEnemyProj.includes(ep.id));
     state.fleet = state.fleet.filter((s) => !toRemoveShip.includes(s.id));
 
     if (state.fleet.length === 0) {
@@ -343,6 +401,8 @@ export function createGameRunner(
       targetY: 0,
       weaponPattern: 'single',
       magnetMult: 1,
+      fireRateMult: 1,
+      enemyProjectiles: [],
       hitStopUntil: 0,
       floatTexts: [],
     };

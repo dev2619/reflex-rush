@@ -25,7 +25,7 @@ const config = {
 
 export default function Home() {
   const router = useRouter();
-  const { economy, missions, backend, consent, iap, events } = useGame();
+  const { economy, missions, backend, consent, iap, events, meta } = useGame();
   const ads = useMemo(() => createAdsHooks(), []);
   const gamesSinceInterstitial = useRef(0);
   const canShowAds = Boolean(consent?.ads && !iap.hasPurchased('remove_ads'));
@@ -44,6 +44,8 @@ export default function Home() {
     targetY: 0,
     weaponPattern: 'single',
     magnetMult: 1,
+    fireRateMult: 1,
+    enemyProjectiles: [],
     hitStopUntil: 0,
     floatTexts: [],
   });
@@ -141,6 +143,7 @@ export default function Home() {
       state={state}
       config={config}
       coins={coins}
+      equippedSkinId={meta.getEquippedSkin()}
       onNavigateShop={() => router.push('/shop')}
       onNavigateMissions={() => router.push('/missions')}
       onNavigateLeaderboard={() => router.push('/leaderboard')}

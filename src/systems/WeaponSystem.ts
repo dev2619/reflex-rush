@@ -7,7 +7,7 @@ import type { ProjectilePool } from '../entities/Projectile';
 import type { GameConfig } from '../core/types';
 import { EntityKind } from '../core/types';
 
-const FIRE_RATE_MS = 180;
+const FIRE_RATE_MS = 420;
 const PROJECTILE_SPEED_PX_PER_SEC = 900;
 
 export interface WeaponSystemState {
@@ -26,9 +26,11 @@ export function createWeaponSystem() {
       now: number,
       fleet: Entity[],
       pool: ProjectilePool,
-      config: GameConfig
+      config: GameConfig,
+      fireRateMult: number = 1
     ): Entity[] {
-      const fireRate = config.fireRateMs ?? FIRE_RATE_MS;
+      const baseRate = config.fireRateMs ?? FIRE_RATE_MS;
+      const fireRate = Math.max(80, baseRate / fireRateMult);
       if (now - state.lastFireAt < fireRate) return [];
       state.lastFireAt = now;
 

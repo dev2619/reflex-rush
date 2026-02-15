@@ -111,8 +111,11 @@ describe('GameRunner', () => {
     expect(state).toHaveProperty('targetX');
     expect(state).toHaveProperty('targetY');
     expect(state).toHaveProperty('weaponPattern');
+    expect(state).toHaveProperty('fireRateMult');
+    expect(state).toHaveProperty('enemyProjectiles');
     expect(state).toHaveProperty('floatTexts');
     expect(Array.isArray(state.fleet)).toBe(true);
+    expect(Array.isArray(state.enemyProjectiles)).toBe(true);
     expect(Array.isArray(state.destructibles)).toBe(true);
     api.destroy();
   });
@@ -143,6 +146,8 @@ describe('GameRunner', () => {
     expect(state.floatTexts).toEqual([]);
     expect(state.weaponPattern).toBe('single');
     expect(state.magnetMult).toBe(1);
+    expect(state.fireRateMult).toBe(1);
+    expect(state.enemyProjectiles).toEqual([]);
     api.destroy();
   });
 

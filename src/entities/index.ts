@@ -6,3 +6,4 @@ export * from './Projectile';
 export * from './Destructible';
 export * from './Powerup';
 export * from './Coin';
+export * from './EnemyProjectile';

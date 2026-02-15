@@ -2,7 +2,7 @@
  * Game screen — Space Swipe Shooter. Free 2D swipe, fleet, projectiles, destructibles, powerups, HUD.
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Dimensions,
   Pressable,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -19,37 +20,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { GameRunnerAPI, GameRunnerState } from '../engine/GameRunner';
 import type { GameConfig } from '../core/types';
+import { getSkinTheme } from '../theme/Skins';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_MIN = 35;
-
-// Space theme — neon sci-fi
-const COLORS = {
-  bg: '#050510',
-  bgStar: 'rgba(120,160,255,0.4)',
-  star: '#a0c0ff',
-  ship: '#00e5ff',
-  shipGlow: 'rgba(0,229,255,0.5)',
-  laser: '#00ffff',
-  laserTrail: 'rgba(0,255,255,0.4)',
-  meteor: '#ff6644',
-  block: '#ffaa22',
-  enemy: '#ff3366',
-  coin: '#ffdd00',
-  powerupShip: '#00ff88',
-  powerupShield: '#0088ff',
-  powerupWeapon: '#ff00aa',
-  powerupMagnet: '#aa00ff',
-  shieldBubble: 'rgba(0,136,255,0.35)',
-  text: '#ffffff',
-  textDim: '#8899aa',
-};
 
 interface GameScreenProps {
   gameRunner: GameRunnerAPI;
   state: GameRunnerState;
   config: GameConfig;
   coins?: number;
+  /** Skin activo (id de MetaProgression). Define paleta y sensación de textura. */
+  equippedSkinId?: string;
   onNavigateShop?: () => void;
   onNavigateMissions?: () => void;
   onNavigateLeaderboard?: () => void;
@@ -62,14 +44,15 @@ export function GameScreen({
   state,
   config,
   coins = 0,
+  equippedSkinId = 'default',
   onNavigateShop,
   onNavigateMissions,
   onNavigateLeaderboard,
   onReviveWithCoins,
   onReviveWithAd,
 }: GameScreenProps) {
+  const theme = useMemo(() => getSkinTheme(equippedSkinId), [equippedSkinId]);
   const [revivingAd, setRevivingAd] = React.useState(false);
-  const [screenShake, setScreenShake] = React.useState(0);
   const gw = config.width || SCREEN_WIDTH;
   const gh = config.height || SCREEN_HEIGHT;
   const scaleX = SCREEN_WIDTH / gw;
@@ -110,10 +93,13 @@ export function GameScreen({
 
   return (
     <GestureDetector gesture={pan}>
-      <View style={styles.container}>
-        {/* Space background + parallax stars */}
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        {/* Fondo espacial con gradiente + estrellas */}
         <View style={[styles.canvas, StyleSheet.absoluteFill]}>
-          <View style={[styles.spaceBg, { width: gw, height: gh }]}>
+          <LinearGradient
+            colors={[theme.bg, theme.bg + 'ee', theme.bg]}
+            style={[styles.spaceBg, { width: gw, height: gh }]}
+          >
             {[...Array(40)].map((_, i) => (
               <View
                 key={i}
@@ -125,12 +111,13 @@ export function GameScreen({
                     width: (i % 3) + 2,
                     height: (i % 3) + 2,
                     borderRadius: (i % 3) + 1,
+                    backgroundColor: theme.star,
                     opacity: 0.4 + (i % 4) * 0.15,
                   },
                 ]}
               />
             ))}
-          </View>
+          </LinearGradient>
 
           <Animated.View
             style={[
@@ -144,11 +131,14 @@ export function GameScreen({
             ]}
             collapsable={false}
           >
-            {/* Projectiles */}
+            {/* Láser jugador (gradiente vertical = sensación de haz) */}
             {state.projectiles.map((p) =>
               p?.bounds ? (
-                <View
+                <LinearGradient
                   key={p.id}
+                  colors={[theme.laser, theme.laserEnd]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
                   style={[
                     styles.projectile,
                     {
@@ -156,78 +146,171 @@ export function GameScreen({
                       top: p.bounds.y,
                       width: p.bounds.width,
                       height: p.bounds.height,
-                      backgroundColor: COLORS.laser,
                     },
                   ]}
                 />
               ) : null
             )}
 
-            {/* Destructibles */}
+            {/* Proyectiles enemigos (gradiente, bajan lentos) */}
+            {(state.enemyProjectiles ?? []).map((ep) =>
+              ep?.bounds ? (
+                <LinearGradient
+                  key={ep.id}
+                  colors={[theme.enemyProjectileLight, theme.enemyProjectile]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={[
+                    styles.projectile,
+                    {
+                      left: ep.bounds.x,
+                      top: ep.bounds.y,
+                      width: ep.bounds.width,
+                      height: ep.bounds.height,
+                      borderRadius: 2,
+                    },
+                  ]}
+                />
+              ) : null
+            )}
+
+            {/* Obstáculos con gradiente (volumen) + detalle interior */}
             {state.destructibles.map((d) => {
               if (!d.bounds) return null;
               const variant = d.destructibleVariant ?? 'meteor';
-              const color =
+              const colors =
                 variant === 'meteor'
-                  ? COLORS.meteor
+                  ? [theme.meteorLight, theme.meteor]
                   : variant === 'block'
-                    ? COLORS.block
-                    : COLORS.enemy;
+                    ? [theme.block, theme.blockDark]
+                    : [theme.enemyLight, theme.enemy];
               const flash = d.hitFlashUntil && d.hitFlashUntil > now;
+              const { width: dw, height: dh } = d.bounds;
               return (
-                <View
+                <LinearGradient
                   key={d.id}
+                  colors={colors as [string, string]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
                   style={[
                     styles.destructible,
                     {
                       left: d.bounds.x,
                       top: d.bounds.y,
-                      width: d.bounds.width,
-                      height: d.bounds.height,
-                      backgroundColor: color,
-                      borderWidth: flash ? 3 : 0,
-                      borderColor: '#fff',
+                      width: dw,
+                      height: dh,
+                      borderWidth: flash ? 3 : 1,
+                      borderColor: flash ? '#fff' : 'rgba(0,0,0,0.4)',
                     },
                   ]}
-                />
+                >
+                  {variant === 'meteor' && (
+                    <View
+                      style={[
+                        styles.destructibleInner,
+                        {
+                          width: dw * 0.5,
+                          height: dh * 0.55,
+                          borderRadius: dw * 0.25,
+                          backgroundColor: theme.meteorLight + '99',
+                          left: dw * 0.25,
+                          top: dh * 0.22,
+                        },
+                      ]}
+                    />
+                  )}
+                  {variant === 'block' && (
+                    <View
+                      style={[
+                        styles.destructibleInner,
+                        {
+                          width: dw * 0.6,
+                          height: 2,
+                          backgroundColor: 'rgba(0,0,0,0.35)',
+                          left: dw * 0.2,
+                          top: dh * 0.45,
+                        },
+                      ]}
+                    />
+                  )}
+                  {variant === 'enemy' && (
+                    <View
+                      style={[
+                        styles.destructibleInner,
+                        {
+                          width: dw * 0.35,
+                          height: dh * 0.4,
+                          borderRadius: dw * 0.2,
+                          backgroundColor: theme.enemyLight + 'dd',
+                          left: dw * 0.325,
+                          top: dh * 0.3,
+                          borderWidth: 1,
+                          borderColor: 'rgba(0,0,0,0.25)',
+                        },
+                      ]}
+                    />
+                  )}
+                </LinearGradient>
               );
             })}
 
-            {/* Powerups */}
+            {/* Powerups con gradiente y brillo */}
             {state.powerups.map((pu) => {
               if (!pu.bounds) return null;
               const t = pu.powerupType ?? 'extra_ship';
-              const color =
+              const [c1, c2] =
                 t === 'extra_ship'
-                  ? COLORS.powerupShip
+                  ? [theme.powerupShipLight, theme.powerupShip]
                   : t === 'shield'
-                    ? COLORS.powerupShield
+                    ? [theme.powerupShieldLight, theme.powerupShield]
                     : t === 'weapon_upgrade'
-                      ? COLORS.powerupWeapon
-                      : COLORS.powerupMagnet;
+                      ? [theme.powerupWeaponLight, theme.powerupWeapon]
+                      : [theme.powerupMagnetLight, theme.powerupMagnet];
+              const sz = pu.bounds.width;
               return (
-                <View
+                <LinearGradient
                   key={pu.id}
+                  colors={[c1, c2] as [string, string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                   style={[
                     styles.powerup,
                     {
                       left: pu.bounds.x,
                       top: pu.bounds.y,
-                      width: pu.bounds.width,
-                      height: pu.bounds.height,
-                      backgroundColor: color,
-                      borderRadius: pu.bounds.width / 2,
+                      width: sz,
+                      height: sz,
+                      borderRadius: sz / 2,
+                      borderWidth: 2,
+                      borderColor: 'rgba(255,255,255,0.7)',
                     },
                   ]}
-                />
+                >
+                  <View
+                    style={[
+                      styles.powerupInner,
+                      {
+                        width: sz * 0.5,
+                        height: sz * 0.5,
+                        borderRadius: sz * 0.25,
+                        left: sz * 0.25,
+                        top: sz * 0.25,
+                        backgroundColor: 'rgba(255,255,255,0.35)',
+                      },
+                    ]}
+                  />
+                </LinearGradient>
               );
             })}
 
-            {/* Coins */}
+            {/* Monedas con gradiente (brillo) */}
             {state.coins.map((c) =>
               c?.bounds ? (
-                <View
+                <LinearGradient
                   key={c.id}
+                  colors={[theme.coinHighlight, theme.coin] as [string, string]}
+                  start={{ x: 0.2, y: 0.2 }}
+                  end={{ x: 1, y: 1 }}
                   style={[
                     styles.coin,
                     {
@@ -236,14 +319,29 @@ export function GameScreen({
                       width: c.bounds.width,
                       height: c.bounds.height,
                       borderRadius: c.bounds.width / 2,
-                      backgroundColor: COLORS.coin,
+                      borderWidth: 1,
+                      borderColor: theme.coinHighlight + 'cc',
                     },
                   ]}
-                />
+                >
+                  <View
+                    style={[
+                      styles.coinInner,
+                      {
+                        width: c.bounds.width * 0.4,
+                        height: c.bounds.height * 0.4,
+                        borderRadius: c.bounds.width * 0.2,
+                        left: c.bounds.width * 0.3,
+                        top: c.bounds.height * 0.3,
+                        backgroundColor: theme.coinHighlight + '99',
+                      },
+                    ]}
+                  />
+                </LinearGradient>
               ) : null
             )}
 
-            {/* Fleet: ships with shield bubble */}
+            {/* Fleet: naves con gradiente en cuerpo (triángulo) y cockpit */}
             {state.fleet.map((ship) => (
               <View key={ship.id} style={styles.shipWrap}>
                 {ship.shieldActive && (
@@ -256,7 +354,7 @@ export function GameScreen({
                         width: ship.bounds.width * 1.8,
                         height: ship.bounds.height * 1.8,
                         borderRadius: ship.bounds.width * 0.9,
-                        borderColor: COLORS.shieldBubble,
+                        borderColor: theme.shieldBubble,
                       },
                     ]}
                   />
@@ -274,7 +372,24 @@ export function GameScreen({
                       borderTopWidth: ship.bounds.height,
                       borderLeftColor: 'transparent',
                       borderRightColor: 'transparent',
-                      borderTopColor: COLORS.ship,
+                      borderTopColor: theme.ship,
+                    },
+                  ]}
+                />
+                <LinearGradient
+                  colors={[theme.shipCockpitHighlight, theme.shipCockpit] as [string, string]}
+                  start={{ x: 0.3, y: 0 }}
+                  end={{ x: 0.7, y: 1 }}
+                  style={[
+                    styles.shipCockpit,
+                    {
+                      left: ship.bounds.x + ship.bounds.width * 0.3,
+                      top: ship.bounds.y + ship.bounds.height * 0.35,
+                      width: ship.bounds.width * 0.4,
+                      height: ship.bounds.height * 0.4,
+                      borderRadius: ship.bounds.width * 0.2,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.6)',
                     },
                   ]}
                 />
@@ -287,14 +402,14 @@ export function GameScreen({
               .map((f, i) => (
                 <Text
                   key={`ft-${i}-${f.until}`}
-                  style={[
-                    styles.floatText,
-                    {
-                      left: f.x - 20,
-                      top: f.y - 12,
-                      color: COLORS.coin,
-                    },
-                  ]}
+                    style={[
+                      styles.floatText,
+                      {
+                        left: f.x - 20,
+                        top: f.y - 12,
+                        color: theme.coin,
+                      },
+                    ]}
                 >
                   +{f.value}
                 </Text>
@@ -306,16 +421,16 @@ export function GameScreen({
         {state.status === 'playing' && (
           <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
             <View style={styles.hudTop} pointerEvents="none">
-              <Text style={styles.coinsHud}>🪙 {coins}</Text>
-              <Text style={styles.shipsHud}>🚀 {state.fleet.length}</Text>
-              <Text style={styles.scoreHud}>{state.score}</Text>
+              <Text style={[styles.coinsHud, { color: theme.text }]}>🪙 {coins}</Text>
+              <Text style={[styles.shipsHud, { color: theme.text }]}>🚀 {state.fleet.length}</Text>
+              <Text style={[styles.scoreHud, { color: theme.ship }]}>{state.score}</Text>
             </View>
             <View style={styles.hudBottom} pointerEvents="box-none">
               <Pressable
                 style={({ pressed }) => [styles.pauseBtn, pressed && styles.pauseBtnPressed]}
                 onPress={() => {}}
               >
-                <Text style={styles.pauseBtnText}>⏸</Text>
+                <Text style={[styles.pauseBtnText, { color: theme.text }]}>⏸</Text>
               </Pressable>
             </View>
           </View>
@@ -324,9 +439,9 @@ export function GameScreen({
         {/* Game over overlay */}
         {state.status === 'gameover' && (
           <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
-            <Text style={styles.gameOverTitle}>GAME OVER</Text>
-            <Text style={styles.finalScore}>{state.score} pts</Text>
-            <Text style={styles.coinsEarned}>+{state.coinsThisRun} 🪙</Text>
+            <Text style={[styles.gameOverTitle, { color: theme.text }]}>GAME OVER</Text>
+            <Text style={[styles.finalScore, { color: theme.ship }]}>{state.score} pts</Text>
+            <Text style={[styles.coinsEarned, { color: theme.coin }]}>+{state.coinsThisRun} 🪙</Text>
             {onReviveWithCoins && coins >= 50 && (
               <Pressable
                 style={({ pressed }) => [styles.reviveBtn, pressed && styles.retryPressed]}
@@ -351,16 +466,16 @@ export function GameScreen({
               </Pressable>
             )}
             <Pressable
-              style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]}
+              style={({ pressed }) => [styles.retry, { backgroundColor: theme.ship }, pressed && styles.retryPressed]}
               onPress={() => gameRunner.retry()}
             >
-              <Text style={styles.retryText}>RETRY</Text>
+              <Text style={[styles.retryText, { color: theme.bg }]}>RETRY</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [styles.menuBtn, pressed && styles.retryPressed]}
+              style={({ pressed }) => [styles.menuBtn, { borderColor: theme.textDim }, pressed && styles.retryPressed]}
               onPress={() => gameRunner.goToMenu()}
             >
-              <Text style={styles.menuBtnText}>Menú principal</Text>
+              <Text style={[styles.menuBtnText, { color: theme.textDim }]}>Menú principal</Text>
             </Pressable>
           </View>
         )}
@@ -372,29 +487,29 @@ export function GameScreen({
               {(onNavigateShop != null || onNavigateMissions != null || onNavigateLeaderboard != null) && (
                 <View style={styles.navRow}>
                   {onNavigateShop != null && (
-                    <Pressable style={styles.navBtn} onPress={onNavigateShop}>
-                      <Text style={styles.navBtnText}>🛒 Tienda</Text>
+                    <Pressable style={[styles.navBtn, { backgroundColor: theme.ship }]} onPress={onNavigateShop}>
+                      <Text style={[styles.navBtnText, { color: theme.bg }]}>🛒 Tienda</Text>
                     </Pressable>
                   )}
                   {onNavigateMissions != null && (
-                    <Pressable style={styles.navBtn} onPress={onNavigateMissions}>
-                      <Text style={styles.navBtnText}>📋 Misiones</Text>
+                    <Pressable style={[styles.navBtn, { backgroundColor: theme.ship }]} onPress={onNavigateMissions}>
+                      <Text style={[styles.navBtnText, { color: theme.bg }]}>📋 Misiones</Text>
                     </Pressable>
                   )}
                   {onNavigateLeaderboard != null && (
-                    <Pressable style={styles.navBtn} onPress={onNavigateLeaderboard}>
-                      <Text style={styles.navBtnText}>🏆 Ranking</Text>
+                    <Pressable style={[styles.navBtn, { backgroundColor: theme.ship }]} onPress={onNavigateLeaderboard}>
+                      <Text style={[styles.navBtnText, { color: theme.bg }]}>🏆 Ranking</Text>
                     </Pressable>
                   )}
                 </View>
               )}
-              <Text style={styles.instructions}>Swipe to move • Survive • Collect coins</Text>
-              <Text style={styles.instructionsSub}>Destroy meteors & enemies. Get more ships.</Text>
+              <Text style={[styles.instructions, { color: theme.text }]}>Swipe to move • Survive • Collect coins</Text>
+              <Text style={[styles.instructionsSub, { color: theme.textDim }]}>Destroy meteors & enemies. Get more ships.</Text>
               <Pressable
-                style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]}
+                style={({ pressed }) => [styles.retry, { backgroundColor: theme.ship }, pressed && styles.retryPressed]}
                 onPress={() => gameRunner.startRun()}
               >
-                <Text style={styles.retryText}>PLAY</Text>
+                <Text style={[styles.retryText, { color: theme.bg }]}>PLAY</Text>
               </Pressable>
             </View>
           </View>
@@ -404,17 +519,16 @@ export function GameScreen({
   );
 }
 
+const defaultTheme = getSkinTheme('default');
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: defaultTheme.bg },
   canvas: { alignItems: 'center', justifyContent: 'center' },
   spaceBg: {
     position: 'absolute',
-    backgroundColor: COLORS.bg,
     overflow: 'hidden',
   },
   star: {
     position: 'absolute',
-    backgroundColor: COLORS.star,
   },
   world: {
     position: 'absolute',
@@ -429,11 +543,26 @@ const styles = StyleSheet.create({
   destructible: {
     position: 'absolute',
     borderRadius: 6,
+    overflow: 'hidden',
+  },
+  destructibleInner: {
+    position: 'absolute',
+  },
+  shipCockpit: {
+    position: 'absolute',
   },
   powerup: {
     position: 'absolute',
+    overflow: 'hidden',
+  },
+  powerupInner: {
+    position: 'absolute',
   },
   coin: {
+    position: 'absolute',
+    overflow: 'hidden',
+  },
+  coinInner: {
     position: 'absolute',
   },
   shipWrap: { position: 'absolute' },
@@ -460,9 +589,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  coinsHud: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  shipsHud: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  scoreHud: { fontSize: 24, fontWeight: '800', color: COLORS.ship },
+  coinsHud: { fontSize: 18, fontWeight: '700', color: defaultTheme.text },
+  shipsHud: { fontSize: 18, fontWeight: '700', color: defaultTheme.text },
+  scoreHud: { fontSize: 24, fontWeight: '800', color: defaultTheme.ship },
   hudBottom: {
     position: 'absolute',
     bottom: 40,
@@ -477,7 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pauseBtnPressed: { opacity: 0.8 },
-  pauseBtnText: { fontSize: 22, color: COLORS.text },
+  pauseBtnText: { fontSize: 22, color: defaultTheme.text },
   overlay: {
     backgroundColor: 'rgba(0,0,0,0.75)',
     alignItems: 'center',
@@ -487,24 +616,24 @@ const styles = StyleSheet.create({
   instructions: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: defaultTheme.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   instructionsSub: {
     fontSize: 14,
-    color: COLORS.textDim,
+    color: defaultTheme.textDim,
     marginBottom: 24,
     textAlign: 'center',
   },
   gameOverTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: COLORS.text,
+    color: defaultTheme.text,
     marginBottom: 8,
   },
-  finalScore: { fontSize: 20, color: COLORS.ship, marginBottom: 4 },
-  coinsEarned: { fontSize: 16, color: COLORS.coin, marginBottom: 20 },
+  finalScore: { fontSize: 20, color: defaultTheme.ship, marginBottom: 4 },
+  coinsEarned: { fontSize: 16, color: defaultTheme.coin, marginBottom: 20 },
   navRow: {
     flexDirection: 'row',
     marginBottom: 24,
@@ -514,11 +643,11 @@ const styles = StyleSheet.create({
   navBtn: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: COLORS.ship,
+    backgroundColor: defaultTheme.ship,
     borderRadius: 10,
     marginHorizontal: 6,
   },
-  navBtnText: { color: COLORS.bg, fontSize: 16, fontWeight: '700' },
+  navBtnText: { color: defaultTheme.bg, fontSize: 16, fontWeight: '700' },
   reviveBtn: {
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -526,25 +655,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  reviveBtnText: { color: COLORS.text, fontWeight: '600' },
+  reviveBtnText: { color: defaultTheme.text, fontWeight: '600' },
   reviveAdBtn: { backgroundColor: 'rgba(255,255,255,0.1)' },
   btnDisabled: { opacity: 0.6 },
   retry: {
     paddingHorizontal: 48,
     paddingVertical: 16,
-    backgroundColor: COLORS.ship,
+    backgroundColor: defaultTheme.ship,
     borderRadius: 12,
     marginBottom: 10,
   },
   retryPressed: { opacity: 0.8 },
-  retryText: { fontSize: 18, fontWeight: '700', color: COLORS.bg },
+  retryText: { fontSize: 18, fontWeight: '700', color: defaultTheme.bg },
   menuBtn: {
     paddingHorizontal: 32,
     paddingVertical: 14,
     backgroundColor: 'transparent',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.textDim,
+    borderColor: defaultTheme.textDim,
   },
-  menuBtnText: { fontSize: 16, fontWeight: '600', color: COLORS.textDim },
+  menuBtnText: { fontSize: 16, fontWeight: '600', color: defaultTheme.textDim },
 });

@@ -16,11 +16,18 @@ export const DEFAULT_CONFIG: GameConfig = {
   nearMissSlowMoScale: 0.4,
   playerMoveSpeedPxPerSec: 520,
   playerLerpFactor: 12,
-  fireRateMs: 180,
+  fireRateMs: 420,
   projectileSpeedPxPerSec: 900,
   coinMagnetRadiusPx: 120,
   maxParticles: 80,
 };
+/** Multiplicador de velocidad de disparo con powerup (1 = normal, mayor = dispara más rápido) */
+export const FIRE_RATE_MULT_UPGRADE = 1.85;
+/** Enemigos: intervalo entre disparos (ms) */
+export const ENEMY_SHOOT_INTERVAL_MIN_MS = 1800;
+export const ENEMY_SHOOT_INTERVAL_MAX_MS = 3200;
+/** Velocidad de las balas enemigas (lentas) */
+export const ENEMY_PROJECTILE_SPEED_PX_PER_SEC = 140;
 
 export const SWIPE_THRESHOLD_PX = 50;
 export const PLAYER_LANE_COUNT = 3;
